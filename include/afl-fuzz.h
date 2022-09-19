@@ -1164,7 +1164,7 @@ double rand_next_percent(afl_state_t *afl);
 
 /* Generate a random number (from 0 to limit - 1). This may
    have slight bias. */
-
+//产生随机数
 static inline u32 rand_below(afl_state_t *afl, u32 limit) {
 
   if (limit <= 1) return 0;

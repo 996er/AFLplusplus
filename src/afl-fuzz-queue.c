@@ -28,10 +28,10 @@
 #include <math.h>
 
 /* select next queue entry based on alias algo - fast! */
-
+//别名采样算法，aflchurn也使用了该算法，用于随机产生符合事件概率的抽样
 inline u32 select_next_queue_entry(afl_state_t *afl) {
 
-  u32    s = rand_below(afl, afl->queued_items);
+  u32    s = rand_below(afl, afl->queued_items);    //产生随机数
   double p = rand_next_percent(afl);
   /*
   fprintf(stderr, "select: p=%f s=%u ... p < prob[s]=%f ? s=%u : alias[%u]=%u"
@@ -42,6 +42,7 @@ inline u32 select_next_queue_entry(afl_state_t *afl) {
 
 }
 
+//权重计算
 double compute_weight(afl_state_t *afl, struct queue_entry *q,
                       double avg_exec_us, double avg_bitmap_size,
                       double avg_top_size) {
@@ -66,7 +67,7 @@ double compute_weight(afl_state_t *afl, struct queue_entry *q,
 }
 
 /* create the alias table that allows weighted random selection - expensive */
-
+//生成别名算法的table，用来抽样
 void create_alias_table(afl_state_t *afl) {
 
   u32    n = afl->queued_items, i = 0, a, g;
@@ -74,8 +75,12 @@ void create_alias_table(afl_state_t *afl) {
 
   afl->alias_table =
       (u32 *)afl_realloc((void **)&afl->alias_table, n * sizeof(u32));
+
+
   afl->alias_probability = (double *)afl_realloc(
       (void **)&afl->alias_probability, n * sizeof(double));
+
+
   double *P = (double *)afl_realloc(AFL_BUF_PARAM(out), n * sizeof(double));
   int    *S = (u32 *)afl_realloc(AFL_BUF_PARAM(out_scratch), n * sizeof(u32));
   int    *L = (u32 *)afl_realloc(AFL_BUF_PARAM(in_scratch), n * sizeof(u32));
@@ -243,7 +248,7 @@ void create_alias_table(afl_state_t *afl) {
 /* Mark deterministic checks as done for a particular queue entry. We use the
    .state file to avoid repeating deterministic fuzzing when resuming aborted
    scans. */
-
+//将确定性检查标记为针对特定队列条目所做的检查,使用.state文件来避免在恢复中中止扫描时重复fuzz,
 void mark_as_det_done(afl_state_t *afl, struct queue_entry *q) {
 
   u8  fn[PATH_MAX];
@@ -262,7 +267,7 @@ void mark_as_det_done(afl_state_t *afl, struct queue_entry *q) {
 
 /* Mark as variable. Create symlinks if possible to make it easier to examine
    the files. */
-
+//方便检查
 void mark_as_variable(afl_state_t *afl, struct queue_entry *q) {
 
   u8 fn[PATH_MAX];
@@ -287,7 +292,7 @@ void mark_as_variable(afl_state_t *afl, struct queue_entry *q) {
 
 /* Mark / unmark as redundant (edge-only). This is not used for restoring state,
    but may be useful for post-processing datasets. */
-
+//标记无关边
 void mark_as_redundant(afl_state_t *afl, struct queue_entry *q, u8 state) {
 
   if (likely(state == q->fs_redundant)) { return; }
@@ -316,7 +321,7 @@ void mark_as_redundant(afl_state_t *afl, struct queue_entry *q, u8 state) {
 }
 
 /* check if pointer is ascii or UTF-8 */
-
+//检查指向的是ascii还是utf-8
 u8 check_if_text_buf(u8 *buf, u32 len) {
 
   u32 offset = 0, ascii = 0, utf8 = 0;
@@ -405,7 +410,7 @@ u8 check_if_text_buf(u8 *buf, u32 len) {
 }
 
 /* check if queue entry is ascii or UTF-8 */
-
+//检查队列入口是ascii还是utf-8
 static u8 check_if_text(afl_state_t *afl, struct queue_entry *q) {
 
   if (q->len < AFL_TXT_MIN_LEN) return 0;
@@ -516,11 +521,13 @@ static u8 check_if_text(afl_state_t *afl, struct queue_entry *q) {
 }
 
 /* Append new test case to the queue. */
-
+//添加到队列
 void add_to_queue(afl_state_t *afl, u8 *fname, u32 len, u8 passed_det) {
 
+  //申请节点内存
   struct queue_entry *q = ck_alloc(sizeof(struct queue_entry));
 
+  //基本属性设置
   q->fname = fname;
   q->len = len;
   q->depth = afl->cur_depth + 1;
@@ -535,6 +542,7 @@ void add_to_queue(afl_state_t *afl, u8 *fname, u32 len, u8 passed_det) {
 
   if (q->depth > afl->max_depth) { afl->max_depth = q->depth; }
 
+  //设置为队列入口
   if (afl->queue_top) {
 
     afl->queue_top = q;
@@ -555,6 +563,7 @@ void add_to_queue(afl_state_t *afl, u8 *fname, u32 len, u8 passed_det) {
 
   struct queue_entry **queue_buf = afl_realloc(
       AFL_BUF_PARAM(queue), afl->queued_items * sizeof(struct queue_entry *));
+
   if (unlikely(!queue_buf)) { PFATAL("alloc"); }
   queue_buf[afl->queued_items - 1] = q;
   q->id = afl->queued_items - 1;
@@ -578,7 +587,7 @@ void add_to_queue(afl_state_t *afl, u8 *fname, u32 len, u8 passed_det) {
 }
 
 /* Destroy the entire queue. */
-
+//销毁队列
 void destroy_queue(afl_state_t *afl) {
 
   u32 i;
@@ -607,6 +616,7 @@ void destroy_queue(afl_state_t *afl) {
    previous contender, or if the contender has a more favorable speed x size
    factor. */
 
+//更新bitmap得分，top_rated[]
 void update_bitmap_score(afl_state_t *afl, struct queue_entry *q) {
 
   u32 i;
@@ -722,6 +732,7 @@ void update_bitmap_score(afl_state_t *afl, struct queue_entry *q) {
    until the next run. The favored entries are given more air time during
    all fuzzing steps. */
 
+//精简
 void cull_queue(afl_state_t *afl) {
 
   if (likely(!afl->score_changed || afl->non_instrumented_mode)) { return; }
@@ -793,6 +804,7 @@ void cull_queue(afl_state_t *afl) {
    A helper function for fuzz_one(). Maybe some of these constants should
    go into config.h. */
 
+//计算得分
 u32 calculate_score(afl_state_t *afl, struct queue_entry *q) {
 
   u32 cal_cycles = afl->total_cal_cycles;
@@ -1078,7 +1090,7 @@ u32 calculate_score(afl_state_t *afl, struct queue_entry *q) {
 }
 
 /* after a custom trim we need to reload the testcase from disk */
-
+//testcase重新加载
 inline void queue_testcase_retake(afl_state_t *afl, struct queue_entry *q,
                                   u32 old_len) {
 
@@ -1140,7 +1152,7 @@ inline void queue_testcase_retake_mem(afl_state_t *afl, struct queue_entry *q,
 
 /* Returns the testcase buf from the file behind this queue entry.
   Increases the refcount. */
-
+//获取testcase buf
 inline u8 *queue_testcase_get(afl_state_t *afl, struct queue_entry *q) {
 
   u32 len = q->len;
@@ -1296,7 +1308,7 @@ inline u8 *queue_testcase_get(afl_state_t *afl, struct queue_entry *q) {
 }
 
 /* Adds the new queue entry to the cache. */
-
+//添加新的队列入口到缓存
 inline void queue_testcase_store_mem(afl_state_t *afl, struct queue_entry *q,
                                      u8 *mem) {
 
