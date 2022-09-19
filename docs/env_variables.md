@@ -49,7 +49,7 @@ fairly broad use of environment variables instead:
     compilation tools, rather than the default 'as', 'clang', or 'gcc' binaries
     in your `$PATH`.
 
-  - If you are a weird person that wants to compile and instrument asm text
+  - If you are a weird person that wants to compile and instrument asm text        //非要汇编插桩，那确实挺奇怪 :)
     files, then use the `AFL_AS_FORCE_INSTRUMENT` variable:
     `AFL_AS_FORCE_INSTRUMENT=1 afl-gcc foo.s -o foo`
 

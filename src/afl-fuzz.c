@@ -519,15 +519,23 @@ int main(int argc, char **argv_orig, char **envp) {
 
   char **argv = argv_cpy_dup(argc, argv_orig);
 
+  //afl_state_t包含整个fuzz实例信息，如果需要添加额外的信息，在此结构体中添加
   afl_state_t *afl = calloc(1, sizeof(afl_state_t));
   if (!afl) { FATAL("Could not create afl state"); }
 
+  //调试模式
   if (get_afl_env("AFL_DEBUG")) { debug = afl->debug = 1; }
 
+  //初始化fuzz实例
   afl_state_init(afl, map_size);
+
   afl->debug = debug;
+
+  //初始化fsrv配置
   afl_fsrv_init(&afl->fsrv);
   if (debug) { afl->fsrv.debug = true; }
+
+  //读取环境变量
   read_afl_environment(afl, envp);
   if (afl->shm.map_size) { afl->fsrv.map_size = afl->shm.map_size; }
   exit_1 = !!afl->afl_env.afl_bench_just_one;
@@ -538,6 +546,8 @@ int main(int argc, char **argv_orig, char **envp) {
   doc_path = access(DOC_PATH, F_OK) != 0 ? (u8 *)"docs" : (u8 *)DOC_PATH;
 
   gettimeofday(&tv, &tz);
+
+  //设置种子的随机值
   rand_set_seed(afl, tv.tv_sec ^ tv.tv_usec ^ getpid());
 
   afl->shmem_testcase_mode = 1;  // we always try to perform shmem fuzzing
@@ -1364,6 +1374,7 @@ int main(int argc, char **argv_orig, char **envp) {
   setup_signal_handlers();
   check_asan_opts(afl);
 
+  //能量调度模式设置
   afl->power_name = power_names[afl->schedule];
 
   if (!afl->non_instrumented_mode && !afl->sync_id) {
@@ -1485,6 +1496,7 @@ int main(int argc, char **argv_orig, char **envp) {
 
   ACTF("Getting to work...");
 
+  //能量调度策略
   switch (afl->schedule) {
 
     case FAST:
@@ -1653,6 +1665,8 @@ int main(int argc, char **argv_orig, char **envp) {
 
   }
 
+
+  //设置生成种子的大小范围
   OKF("Generating fuzz data with a length of min=%u max=%u", afl->min_length,
       afl->max_length);
   u32 min_alloc = MAX(64U, afl->min_length);
@@ -1777,6 +1791,8 @@ int main(int argc, char **argv_orig, char **envp) {
   check_if_tty(afl);
   if (afl->afl_env.afl_force_ui) { afl->not_on_tty = 0; }
 
+
+  //开启自定义变异算子
   if (afl->afl_env.afl_custom_mutator_only) {
 
     /* This ensures we don't proceed to havoc/splice */
@@ -1984,6 +2000,7 @@ int main(int argc, char **argv_orig, char **envp) {
 
   }
 
+  //分配共享内存
   if (afl->non_instrumented_mode || afl->fsrv.qemu_mode ||
       afl->fsrv.frida_mode || afl->fsrv.cs_mode || afl->unicorn_mode) {
 
@@ -2136,6 +2153,10 @@ int main(int argc, char **argv_orig, char **envp) {
   dedup_extras(afl);
   if (afl->extras_cnt) { OKF("Loaded a total of %u extras.", afl->extras_cnt); }
 
+
+
+
+
   // after we have the correct bitmap size we can read the bitmap -B option
   // and set the virgin maps
   if (afl->in_bitmap) {
@@ -2170,6 +2191,7 @@ int main(int argc, char **argv_orig, char **envp) {
 
   }
 
+  //精简队列
   cull_queue(afl);
 
   // ensure we have at least one seed that is not disabled.
@@ -2262,8 +2284,10 @@ int main(int argc, char **argv_orig, char **envp) {
   OKF("Writing mutation introspection to '%s'", ifn);
   #endif
 
+  //开始Fuzz
   while (likely(!afl->stop_soon)) {
 
+    //精简队列
     cull_queue(afl);
 
     if (unlikely((!afl->old_seed_selection &&
@@ -2358,6 +2382,7 @@ int main(int argc, char **argv_orig, char **envp) {
 
           }
 
+          //扩展的havoc变异策略选择
           switch (afl->expand_havoc) {
 
             case 0:
@@ -2496,6 +2521,7 @@ int main(int argc, char **argv_orig, char **envp) {
 
       }
 
+      //run
       skipped_fuzz = fuzz_one(afl);
 
       if (unlikely(!afl->stop_soon && exit_1)) { afl->stop_soon = 2; }
